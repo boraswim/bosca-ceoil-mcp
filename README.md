@@ -9,7 +9,7 @@ This is an unofficial companion project, not affiliated with Bosca Ceoil Blue or
 You need [Node.js](https://nodejs.org) 18 or newer, and [Bosca Ceoil Blue](https://yurisizov.itch.io/boscaceoil-blue) unpacked somewhere on your computer.
 
 ```bash
-git clone <this repository>
+git clone https://github.com/boraswim/bosca-ceoil-mcp.git
 cd bosca-ceoil-mcp
 npm install
 ```

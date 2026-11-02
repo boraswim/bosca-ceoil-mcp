@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "MCP server that lets AI tools compose music in Bosca Ceoil Blue",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boraswim/bosca-ceoil-mcp.git"
+  },
+  "homepage": "https://github.com/boraswim/bosca-ceoil-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/boraswim/bosca-ceoil-mcp/issues"
+  },
   "type": "module",
   "bin": {
     "bosca-ceoil-mcp": "dist/index.js"
