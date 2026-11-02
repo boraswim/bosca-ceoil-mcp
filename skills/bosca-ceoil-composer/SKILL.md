@@ -41,8 +41,9 @@ Reference material teaches technique, such as tempo, density, form and how a sou
 5. Export to WAV, then run `scripts/finish_sfx.py` to trim silence and set the level.
 6. Run `scripts/analyze_audio.py` and compare the result to the recipe's targets. Adjust and export again if they're clearly off.
 7. Make 2 or 3 variations when the sound will repeat often in the game, such as footsteps or hits, because identical repeats are tiring to hear. Change the pitch by a few semitones or the length by a step.
+8. Call `save_song` so the user keeps an editable `.ceol` file next to the WAV. Do this before starting another song, because `create_song` replaces the open one.
 
-To make several sounds without effects in one song, put each in its own bar with empty bars after it, then use `from_bar` and `to_bar` on `export_song`. Each sound that needs a different effect needs its own song, because an effect applies to the whole song.
+To make several sounds without effects in one song, put each in its own bar with empty bars after it, then use `from_bar` and `to_bar` on `export_song`. One `.ceol` file then holds the whole set. Each sound that needs a different effect needs its own song, because an effect applies to the whole song.
 
 ## Music workflow
 
