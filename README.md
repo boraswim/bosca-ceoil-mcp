@@ -82,6 +82,24 @@ This is a standard MCP server over stdio, so any tool that supports those can us
 
 Your work is protected. Replacing a song with unsaved changes, overwriting a file, or quitting with unsaved changes all fail unless the AI tool explicitly says that's intended. An edit is one undo step in the app, whether you or the AI made it.
 
+## Composer skill
+
+[`skills/bosca-ceoil-composer`](skills/bosca-ceoil-composer) is an optional skill that helps Claude write game music and sound effects with this server. It has sound effect recipes, tempo and arrangement guidance for game moments, notes on how the app behaves, scripts that measure exports, cut seamless loops and finish sound effects, and [demos](skills/bosca-ceoil-composer/assets/demos) you can listen to. The scripts need Python 3, and two of them need numpy.
+
+To use it in Claude Code, copy that folder to `~/.claude/skills/`, or to `.claude/skills/` in your project.
+
+The skill writes original material. Its guidance comes from aggregate measurements like tempo, length, density and pitch movement, and it contains no melodies or audio from these sources:
+
+| Source | Used for | License |
+| --- | --- | --- |
+| [jsfxr](https://github.com/chr15m/jsfxr) | How retro sound effect presets are built | Unlicense |
+| [Interface Sounds](https://opengameart.org/content/interface-sounds) by Kenney | UI sound measurements | CC0 |
+| [100 CC0 SFX #2](https://opengameart.org/content/100-cc0-sfx-2) by rubberduck | Sound effect measurements | CC0 |
+| [Indiscriminate MIDI Music](https://opengameart.org/content/indiscriminate-midi-music) by blitzdoughnuts | Arrangement statistics | CC0 |
+| [Original MIDI Album](https://opengameart.org/content/original-midi-album) by roppychop | Checked for note grid fit | CC0 |
+| [Procedural MIDI Music](https://opengameart.org/content/procedural-midi-music) by Drummyfish | Checked for note grid fit | CC0 |
+| [Incompetech](https://incompetech.com/music/royalty-free/music.html) by Kevin MacLeod | Tempo and instrument data by feel, from the catalog's track list | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+
 ## How it works
 
 ```
