@@ -7,6 +7,8 @@ description: Compose original game music and sound effects with the Bosca Ceoil 
 
 Write original music and sound effects for games in Bosca Ceoil Blue, then export files a game can use.
 
+This skill drives the bosca-ceoil MCP server. If its tools aren't available, tell the user to set it up from https://github.com/boraswim/bosca-ceoil-mcp, which also needs Node.js 18+ and the free Bosca Ceoil Blue app, and stop there.
+
 You can't hear anything you make. Measurements catch technical faults, like silence, clipping, the wrong length or a bad loop seam, but they can't tell you whether something sounds good. Only the user can judge that, so always ask them to listen and never claim that a result sounds good.
 
 ## Start with the brief

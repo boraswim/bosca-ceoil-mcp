@@ -1,8 +1,18 @@
+<img src="docs/media/logo.png" alt="" width="96" align="right">
+
 # Bosca Ceoil MCP
+
+[![Composer skill on Agensi](https://img.shields.io/badge/Agensi-Composer%20skill-6c5ce7)](https://www.agensi.io/skills/bosca-ceoil-composer-game-music-sfx)
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI tools compose music in [Bosca Ceoil Blue](https://yurisizov.itch.io/boscaceoil-blue). Ask your AI tool for a song, and watch the notes appear in the app's window. Listen to it, undo anything with Ctrl+Z, and export it to WAV, MIDI, XM or MML.
 
 This is an unofficial companion project, not affiliated with Bosca Ceoil Blue or its authors. You get the app separately, and it isn't modified.
+
+![An AI tool asks for a platformer loop, and the notes appear in Bosca Ceoil Blue](docs/media/hero.png)
+
+![Demo: the request, the song playing in the app, and the measured result](docs/media/demo.gif)
+
+The demo above is silent. [Watch it with sound](docs/media/demo.mp4) to hear the 8-bar loop the composer skill wrote for it.
 
 ## Setup
 
@@ -86,7 +96,16 @@ Your work is protected. Replacing a song with unsaved changes, overwriting a fil
 
 [`skills/bosca-ceoil-composer`](skills/bosca-ceoil-composer) is an optional skill that helps Claude write game music and sound effects with this server. It has sound effect recipes, tempo and arrangement guidance for game moments, notes on how the app behaves, scripts that measure exports, cut seamless loops and finish sound effects, and [demos](skills/bosca-ceoil-composer/assets/demos) you can listen to. The scripts need Python 3, and two of them need numpy.
 
-To use it in Claude Code, copy that folder to `~/.claude/skills/`, or to `.claude/skills/` in your project.
+To use it in Claude Code, copy that folder to `~/.claude/skills/`, or to `.claude/skills/` in your project. It's also listed on [Agensi](https://www.agensi.io/skills/bosca-ceoil-composer-game-music-sfx), where you can install it into Claude Code, Cursor, Codex and other agents. You still need this server set up.
+
+![The skill's six steps: brief, write, export, measure, finish, listen](docs/media/workflow.png)
+
+<table>
+  <tr>
+    <td><img src="docs/media/measured.png" alt="A loop's waveform with its peak, loudness and loop seam measurements"></td>
+    <td><img src="docs/media/sfx.png" alt="Waveforms of the nine demo sound effects"></td>
+  </tr>
+</table>
 
 The skill writes original material. Its guidance comes from aggregate measurements like tempo, length, density and pitch movement, and it contains no melodies or audio from these sources:
 
