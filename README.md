@@ -3,6 +3,7 @@
 # Bosca Ceoil MCP
 
 [![Bosca Ceoil Composer: Game Music & SFX on Agensi](https://img.shields.io/badge/Bosca_Ceoil_Composer-on_Agensi-1f6feb)](https://www.agensi.io/skills/bosca-ceoil-composer-game-music-sfx)
+[![M8ven Verified](https://m8ven.ai/badge/mcp/boraswim-bosca-ceoil-mcp-jzdduj?variant=verified&v=e98767865393ba98c040dd07fd66f9be)](https://m8ven.ai/mcp/boraswim-bosca-ceoil-mcp-jzdduj?s=readme)
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI tools compose music in [Bosca Ceoil Blue](https://yurisizov.itch.io/boscaceoil-blue). Ask your AI tool for a song, and watch the notes appear in the app's window. Listen to it, undo anything with Ctrl+Z, and export it to WAV, MIDI, XM or MML.
 
