@@ -79,11 +79,14 @@ const SONG = {
 try {
   await client.connect(transport);
 
-  await test("lists tools, each with a description", async () => {
+  await test("lists tools, each with a description and all four hints", async () => {
     const { tools } = await client.listTools();
     assert.ok(tools.length >= 25, `only ${tools.length} tools`);
     for (const tool of tools) {
       assert.ok(tool.description, `${tool.name} has no description`);
+      for (const hint of ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"]) {
+        assert.equal(typeof tool.annotations?.[hint], "boolean", `${tool.name} is missing ${hint}`);
+      }
     }
     assert.ok(client.getInstructions()?.includes("step sequencer"));
   });

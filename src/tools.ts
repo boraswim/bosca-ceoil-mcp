@@ -62,9 +62,11 @@ const songSettings = {
 const discardField = z.boolean().optional().describe("Must be true to replace a song with unsaved changes.");
 const overwriteField = z.boolean().optional().describe("Must be true to replace an existing file.");
 
-const READ_ONLY = { readOnlyHint: true, openWorldHint: false };
-const EDIT = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
-const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, openWorldHint: false };
+// Every tool states all four hints. Edits aren't marked idempotent, since repeating one,
+// like add_pattern or undo, usually changes the song again.
+const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const EDIT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
 
 type ToolResult = { content: ({ type: "text"; text: string } | { type: "image"; data: string; mimeType: string })[]; isError?: boolean };
 
