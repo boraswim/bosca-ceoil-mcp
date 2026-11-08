@@ -112,6 +112,7 @@ export function registerTools(server: McpServer, app: BoscaApp): void {
     "app_status",
     {
       description: "Reports whether Bosca Ceoil Blue is running, plus its version, the current song's summary, and playback and export state. Doesn't start the app.",
+      inputSchema: {},
       annotations: READ_ONLY,
     },
     async () =>
@@ -149,6 +150,7 @@ export function registerTools(server: McpServer, app: BoscaApp): void {
     "screenshot_app",
     {
       description: "Captures the app's window as an image, to check what the user is seeing. Not available without a window.",
+      inputSchema: {},
       annotations: READ_ONLY,
     },
     async () => {
@@ -252,6 +254,7 @@ export function registerTools(server: McpServer, app: BoscaApp): void {
     "export_status",
     {
       description: "Reports how the current or most recent WAV export is going. The song can't be edited while it renders.",
+      inputSchema: {},
       annotations: READ_ONLY,
     },
     async () => run(async () => describeExport(await app.call<ExportJob>("export_status"))),
