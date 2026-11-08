@@ -227,13 +227,14 @@ export function registerTools(server: McpServer, app: BoscaApp): void {
     "export_song",
     {
       description:
-        "Exports the song as audio or music data: wav (rendered audio), mid (MIDI), mml (SiON MML) or xm (FastTracker). A WAV renders at about playback speed or slower, so a long one returns state \"rendering\"; follow it up with export_status. A finished WAV reports its duration, peak and RMS, to help catch silent or clipped results.",
+        "Exports the song as audio or music data: wav (rendered audio), mid (MIDI), mml (SiON MML) or xm (FastTracker). By default a WAV renders at about playback speed or slower, so a long one returns state \"rendering\"; follow it up with export_status. With fast, a WAV renders in a few seconds and returns when done. A finished WAV reports its duration, peak and RMS, to help catch silent or clipped results.",
       inputSchema: {
         format: z.enum(["wav", "mid", "mml", "xm"]),
         path: z.string().describe("Where to write it. The extension must match the format."),
         from_bar: z.number().int().optional().describe("First bar to export, 0 by default."),
         to_bar: z.number().int().optional().describe("Bar after the last one to export. By default, the end of the song."),
         overwrite: overwriteField,
+        fast: z.boolean().optional().describe("Renders a WAV offline instead of playing it through, so it takes seconds instead of the song's length. Same audio as the default export. False by default."),
         wait_seconds: z.number().min(0).max(300).optional().describe(`How long to wait for a WAV before returning, ${DEFAULT_EXPORT_WAIT_SECONDS} by default.`),
       },
       annotations: DESTRUCTIVE,

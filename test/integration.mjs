@@ -328,6 +328,39 @@ try {
     assert.deepEqual([song.arrangement.loop_start, song.arrangement.loop_end], [1, 3], "export changed the loop");
   });
 
+  await test("renders a fast WAV that matches the real-time one", async () => {
+    const path = file("fast.wav");
+    const started = Date.now();
+    const job = await call("export_song", { format: "wav", path, from_bar: 0, to_bar: 4, fast: true });
+    const seconds = (Date.now() - started) / 1000;
+    console.log(`    (${job.duration_seconds}s of audio in ${seconds.toFixed(1)}s, peak ${job.peak}, rms ${job.rms})`);
+
+    assert.equal(job.state, "done");
+    assert.ok(seconds < 10, `the fast render took ${seconds}s`);
+
+    // The test song has a drumkit, swing, reverb and a filtered instrument, so
+    // this compares everything the fast path has to reproduce.
+    const pcm = (name) => {
+      const bytes = readFileSync(name);
+      return new Int16Array(bytes.buffer.slice(bytes.byteOffset + 44, bytes.byteOffset + bytes.length - (bytes.length % 2)));
+    };
+    const real = pcm(file("song.wav"));
+    const fast = pcm(path);
+    assert.ok(Math.abs(real.length - fast.length) < 0.1 * 44100 * 2, `lengths differ: ${real.length} and ${fast.length} samples`);
+    let signal = 0;
+    let difference = 0;
+    for (let i = 0; i < Math.min(real.length, fast.length); i++) {
+      signal += real[i] * real[i];
+      difference += (real[i] - fast[i]) ** 2;
+    }
+    const nullDepth = 10 * Math.log10(signal / Math.max(difference, 1));
+    assert.ok(nullDepth > 40, `the fast render differs from the real-time one (null depth ${nullDepth.toFixed(1)} dB)`);
+
+    const song = await call("get_song");
+    assert.deepEqual([song.arrangement.loop_start, song.arrangement.loop_end], [1, 3], "export changed the loop");
+    await rejects("export_song", { format: "wav", path, fast: true }, /already exists/);
+  });
+
   await test("can't edit while a WAV renders, and reports progress", async () => {
     const path = file("long.wav");
     const job = await call("export_song", { format: "wav", path, wait_seconds: 0 });

@@ -138,7 +138,7 @@ The server starts the normal Bosca Ceoil Blue executable with Godot's `--script`
 - **Not tested yet:** Codex and Antigravity, which follow their documented setup, and macOS and Linux, which should work the same way. Please report what you find.
 - **Other app versions:** the bridge uses the app's internal code, so a future version could break it. You'd get an error saying so when starting up, and details in `app.log`.
 - **Hearing:** AI tools can't hear the song. A WAV export reports its duration, peak and RMS, which catches silent or clipped output, but only you can tell if it sounds good.
-- **WAV exports** render in real time, so a long song takes as long as it plays.
+- **WAV exports** play the song through by default, so a long song takes as long as it plays. With `fast: true`, `export_song` renders it offline in a few seconds instead. In testing it matched the default export sample for sample, except with the compressor effect, whose live output also depends on what the app played before. It's opt-in while it gets more testing.
 - **Filter automation** past step 16 is lost on saving, a limit of the app's file format.
 - **App's scale quirk:** its `minor` scale is melodic, with a raised 6th and 7th. The server explains this to AI tools, since it's easy to trip over.
 

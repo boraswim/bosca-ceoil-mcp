@@ -888,6 +888,8 @@ func cmd_export_song(params: Dictionary) -> Dictionary:
 	Controller.music_player.stop_playback()
 
 	if format == "wav":
+		if params.get("fast", false):
+			return _render_wav_offline(path, config)
 		return _start_wav_export(path, config)
 
 	var success := false
@@ -932,6 +934,205 @@ func _start_wav_export(path: String, config: ExportMasterPopup.ExportConfig) -> 
 	, CONNECT_ONE_SHOT)
 
 	return _export_job
+
+
+## MML length resolution: a whole note is 1920 ticks, so a beat is 480 and a step 120.
+const MML_TICKS_PER_STEP := 120
+const MML_TICKS_PER_BEAT := 480
+## Note lengths SiON can write directly, in ticks (1920 / N for "cN").
+const MML_TICK_LENGTHS: PackedInt32Array = [ 1920, 960, 640, 480, 384, 320, 240, 192, 160, 128, 120, 96, 80, 64, 60, 48, 40, 32, 30, 24, 20, 16, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1 ]
+## How long a track stays reserved after its note ends, so the release can ring
+## out like it does in live playback, where every note gets a track of its own.
+const RENDER_RELEASE_SECONDS := 8.0
+## The live export stops this many steps after the last note ends: it counts
+## each note's length plus 4 steps down, starting with the step it plays on.
+const RENDER_GRACE_STEPS := 3
+
+
+## Renders the song as SiON MML in one blocking call, faster than real time.
+## The MML is written to reproduce live playback (MusicPlayer._playback_step):
+## full-length notes, exact volumes, a track per sounding note, and swing. The
+## global effect is set up on the driver as usual, and kept while rendering.
+func _render_wav_offline(path: String, config: ExportMasterPopup.ExportConfig) -> Dictionary:
+	var song: Song = Controller.current_song
+	var player: MusicPlayer = Controller.music_player
+	var driver: SiONDriver = player._driver
+	var started := Time.get_ticks_msec()
+
+	var built := _build_render_mml(song, config.loop_start, config.loop_end)
+	var mml: String = built["mml"]
+	var seconds: float = built["end_ticks"] / float(MML_TICKS_PER_BEAT) * 60.0 / song.bpm
+	var frames := int(round(seconds * 44100.0))
+
+	player._music_exporting = true
+	player.reset_driver() # Sets the tempo and the global effect.
+	# Not resetting the effector keeps the global effect in place, but preparing
+	# the render resets its state, and the chorus then differs from the live
+	# export. The driver's timer fires before the first sample is mixed, so the
+	# effect is set up again there, the way the live export leaves it.
+	var reapply_effects := func() -> void: player.update_driver_effects()
+	driver.timer_interval.connect(reapply_effects, CONNECT_ONE_SHOT)
+	var buffer: PackedFloat64Array = driver.render(mml, frames * 2, 2, false)
+	if driver.timer_interval.is_connected(reapply_effects):
+		driver.timer_interval.disconnect(reapply_effects)
+	driver.clear_data()
+	player._music_exporting = false
+	player.reset_driver() # Rendering stops the driver.
+	var render_ms := Time.get_ticks_msec() - started
+
+	var pcm := PackedByteArray()
+	pcm.resize(buffer.size() * 2)
+	for i in buffer.size():
+		pcm.encode_s16(i * 2, clampi(int(buffer[i] * 32767.0), -32768, 32767))
+
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		return _err("Failed to open %s for writing." % [ path ])
+	file.store_buffer(_wav_header(pcm.size(), 2, 44100))
+	file.store_buffer(pcm)
+	file.close()
+
+	_export_job = {
+		"state": "done",
+		"path": path,
+		"format": "wav",
+		"fast": true,
+		"render_ms": render_ms,
+		"total_ms": Time.get_ticks_msec() - started,
+	}
+	return _export_job
+
+
+## Writes the bars from_bar to to_bar (exclusive) as SiON MML that plays them
+## exactly like live playback. Returns the MML, and in end_ticks where the live
+## export would stop.
+func _build_render_mml(song: Song, from_bar: int, to_bar: int) -> Dictionary:
+	var size := song.pattern_size
+	var steps := (to_bar - from_bar) * size
+
+	# Start of every step, in ticks. Swing works like MusicPlayer._update_swing:
+	# the gap after a step depends on the parity of the next pattern position,
+	# and the driver truncates each gap to whole ticks.
+	# The grid runs past the song's end, where the live export keeps stepping
+	# until the last notes are done.
+	var step_ticks := PackedInt32Array()
+	step_ticks.resize(steps + Pattern.MAX_NOTE_LENGTH + RENDER_GRACE_STEPS + 1)
+	var swing_gaps := PackedInt32Array([ MML_TICKS_PER_STEP, MML_TICKS_PER_STEP ])
+	if song.swing != 0:
+		var fswing: float = MusicPlayer.NOTE_SWING_MIN + (song.swing + 10.0) * (MusicPlayer.NOTE_SWING_MAX - MusicPlayer.NOTE_SWING_MIN) / 20.0
+		swing_gaps[0] = int(fswing * (1920.0 / 4.0) * 0.0625) # Next position is even.
+		swing_gaps[1] = int((2 * MusicPlayer.NOTE_LENGTH - fswing) * (1920.0 / 4.0) * 0.0625) # Next position is odd.
+	for i in step_ticks.size() - 1:
+		step_ticks[i + 1] = step_ticks[i] + swing_gaps[((i % size) + 1) % 2]
+
+	# Collect notes the way MusicPlayer._playback_step plays them.
+	var voices: Dictionary = {} # Voice key -> MML voice number.
+	var voice_defs := PackedStringArray()
+	var events: Array[Dictionary] = []
+	var end_ticks := step_ticks[steps]
+	for bar in range(from_bar, to_bar):
+		var row: PackedInt32Array = song.arrangement.timeline_bars[bar]
+		for channel in Arrangement.CHANNEL_NUMBER:
+			var pattern_index := row[channel]
+			if pattern_index < 0:
+				continue
+			var pattern: Pattern = song.patterns[pattern_index]
+			var instrument: Instrument = song.instruments[pattern.instrument_idx]
+			for i in pattern.note_amount:
+				var note := pattern.notes[i]
+				if not pattern.is_note_valid(note, size) || not instrument.is_note_valid(note):
+					continue
+
+				var values := Vector3i(instrument.volume, instrument.lp_cutoff, instrument.lp_resonance)
+				if pattern.record_instrument && note.y < pattern.recorded_instrument_values.size():
+					values = pattern.recorded_instrument_values[note.y]
+
+				var voice_key := pattern.instrument_idx * 1000 + (note.x if _is_drumkit(instrument) else 0)
+				if not voices.has(voice_key):
+					voices[voice_key] = voices.size()
+					# The OPN, OPM and OPX formats write the key scale level where the rate
+					# belongs, so those voices use SiON's own format, which keeps everything.
+					var voice := instrument.get_note_voice(note.x)
+					var definition := voice.get_mml(voices[voice_key], SiONDriver.CHIP_AUTO, false)
+					if definition.begins_with("#OPN@") || definition.begins_with("#OPM@") || definition.begins_with("#OPX@"):
+						definition = voice.get_mml(voices[voice_key], SiONDriver.CHIP_SIOPM, false)
+					voice_defs.append(definition)
+
+				var step := (bar - from_bar) * size + note.y
+				var start := step_ticks[step]
+				var length := note.z * MML_TICKS_PER_STEP # Live notes aren't swung.
+				end_ticks = maxi(end_ticks, step_ticks[mini(step + note.z + RENDER_GRACE_STEPS, step_ticks.size() - 1)])
+				events.push_back({
+					"start": start, "length": length, "voice": voices[voice_key],
+					"note": instrument.get_note_value(note.x), "values": values,
+				})
+	events.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["start"] < b["start"])
+
+	# Live playback gives every note a track of its own, so releases overlap the
+	# next note. A track is reused only once its last note has had time to fade.
+	var release_ticks := int(RENDER_RELEASE_SECONDS * song.bpm / 60.0 * MML_TICKS_PER_BEAT)
+	var tracks: Array[Dictionary] = []
+	for event: Dictionary in events:
+		var track: Dictionary = {}
+		for candidate: Dictionary in tracks:
+			if candidate["free_at"] <= event["start"]:
+				track = candidate
+				break
+		if track.is_empty():
+			track = { "free_at": 0, "cursor": 0, "mml": PackedStringArray([ "t%d q8" % [ song.bpm ] ]) }
+			tracks.push_back(track)
+
+		var mml: PackedStringArray = track["mml"]
+		if event["start"] > track["cursor"]:
+			mml.append("r" + _mml_length(event["start"] - track["cursor"]))
+		# Selecting the voice for every note starts it on a fresh channel, like
+		# live playback. Selecting it resets the velocity shift, so that comes
+		# after, and lets "v" take the app's 0-256 volume as it is.
+		var values: Vector3i = event["values"]
+		mml.append("%%6@%d %%v0,0 v%d @f%d,%d o%d%s%s" % [
+			event["voice"], values.x, values.y, values.z,
+			Note.get_note_octave(event["note"]), Note.get_note_mml(event["note"]), _mml_length(event["length"]),
+		])
+		track["mml"] = mml
+		track["cursor"] = event["start"] + event["length"]
+		track["free_at"] = track["cursor"] + release_ticks
+
+	var output := "\n".join(voice_defs) + "\n"
+	for track: Dictionary in tracks:
+		output += " ".join(track["mml"]) + ";\n"
+	return { "mml": output, "end_ticks": end_ticks }
+
+
+## A length in ticks as MML, such as "4^16" for a quarter and a sixteenth.
+func _mml_length(ticks: int) -> String:
+	var parts := PackedStringArray()
+	var left := ticks
+	while left > 0:
+		for length in MML_TICK_LENGTHS:
+			if length <= left:
+				parts.append(str(1920 / length))
+				left -= length
+				break
+	return "^".join(parts)
+
+
+func _wav_header(data_size: int, channels: int, rate: int) -> PackedByteArray:
+	var header := PackedByteArray()
+	header.resize(44)
+	header.encode_u32(0, 0x46464952) # RIFF
+	header.encode_u32(4, 36 + data_size)
+	header.encode_u32(8, 0x45564157) # WAVE
+	header.encode_u32(12, 0x20746d66) # fmt
+	header.encode_u32(16, 16)
+	header.encode_u16(20, 1) # PCM
+	header.encode_u16(22, channels)
+	header.encode_u32(24, rate)
+	header.encode_u32(28, rate * channels * 2)
+	header.encode_u16(32, channels * 2)
+	header.encode_u16(34, 16)
+	header.encode_u32(36, 0x61746164) # data
+	header.encode_u32(40, data_size)
+	return header
 
 
 func cmd_export_status(_params: Dictionary) -> Dictionary:
