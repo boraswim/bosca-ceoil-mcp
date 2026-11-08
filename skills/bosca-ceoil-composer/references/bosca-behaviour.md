@@ -8,7 +8,7 @@ Measured from renders in Bosca Ceoil Blue 3.1.2 through the MCP. A later app ver
 - A note sounds for its written length plus about 20 ms of release, so 8 steps at 450 BPM measured 284 ms.
 - A bar is `pattern_size` steps. Rendered timing matched the tempo to within a sample over 4 bars.
 - Bars at the end of a song with no patterns are dropped, even if you pass `[null]` for them. Use an empty pattern to keep a bar.
-- A render ends up to about 40 ms before the song's nominal length. This is why a loop needs an empty bar after it.
+- A normal render ends up to about 40 ms before the song's nominal length, and a `fast` render 10 to 40 ms after it. This is why a loop needs an empty bar after it, so that `extract_loop.py` always has the full second pass.
 - The render stops dead at the end of the song, cutting off any reverb or delay tail. An empty pattern in the last few bars keeps the tail.
 
 ## Automation only applies when a note starts

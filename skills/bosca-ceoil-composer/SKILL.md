@@ -34,13 +34,24 @@ Read the reference file for the job:
 
 Reference material teaches technique, such as tempo, density, form and how a sound's pitch moves. Never reproduce a recognisable melody, riff or signature sound, even when the user names one, because a game shipping a copy creates a real problem for them. If asked for "the Mario coin sound", make a new sound with a similar function, say that you did, and avoid the original's exact notes.
 
+## Exporting WAV
+
+Pass `fast: true` to `export_song` for WAV files. It renders the song offline in a few seconds instead of playing it through, which would take as long as the song. In testing it matched the normal export sample for sample.
+
+Leave `fast` off in two cases:
+
+- **The song uses the compressor effect.** The compressor's output depends on what the app played before, so the two exports can differ by about 2 dB.
+- **The user asks for the app's own export.**
+
+`fast` works with `from_bar` and `to_bar`. While balancing a mix, export a few bars of each section, such as a verse and a drop, and compare their levels before exporting the whole song.
+
 ## Sound effect workflow
 
 1. Pick a recipe and its target measurements.
 2. Build it with `create_song`: 450 BPM, pattern size 16, scale `normal`, and no effect unless the recipe asks for one. One step is then 33 ms, the shortest time the app can resolve.
 3. Add automation with `update_pattern` if the recipe uses it. It only applies when a note starts, so shape a sound with a run of one-step notes, not a held note.
 4. End the song with an empty pattern so any tail isn't cut off.
-5. Export to WAV, then run `scripts/finish_sfx.py` to trim silence and set the level.
+5. Export to WAV with `fast: true`, then run `scripts/finish_sfx.py` to trim silence and set the level.
 6. Run `scripts/analyze_audio.py` and compare the result to the recipe's targets. Adjust and export again if they're clearly off.
 7. Make 2 or 3 variations when the sound will repeat often in the game, such as footsteps or hits, because identical repeats are tiring to hear. Change the pitch by a few semitones or the length by a step.
 8. Call `save_song` so the user keeps an editable `.ceol` file next to the WAV. Do this before starting another song, because `create_song` replaces the open one.
@@ -53,9 +64,10 @@ To make several sounds without effects in one song, put each in its own bar with
 2. Write 2 to 4 bars of the core idea first: bass and harmony, then the melody, then drums.
 3. Build the arrangement from reused patterns with small changes, like a drum fill or a different melody ending every 4th or 8th bar. Real game tracks repeat a lot, and it also keeps files small and stops listeners tiring of a track.
 4. Use `get_song` to confirm the notes and arrangement landed as intended.
-5. **For a loop,** arrange the loop twice and add one empty bar at the end, then export and cut it with `scripts/extract_loop.py`. This is what makes the seam clean. See "Loops" in the music reference.
-6. Run `scripts/analyze_audio.py` with `--loop` on the result. Fix clipping by lowering instrument volumes, not by accepting it.
-7. Call `save_song` so the user keeps an editable `.ceol` file next to the WAV.
+5. Export to WAV, using `fast: true` unless the song uses the compressor. Before the full export, test a few bars of each section to check the levels, and make sure each drop or chorus comes out louder than what leads into it.
+6. **For a loop,** arrange the loop twice and add one empty bar at the end, then export and cut it with `scripts/extract_loop.py`. This is what makes the seam clean. See "Loops" in the music reference.
+7. Run `scripts/analyze_audio.py` on the result, adding `--loop` for a loop. Fix clipping by lowering instrument volumes, not by accepting it.
+8. Call `save_song` so the user keeps an editable `.ceol` file next to the WAV.
 
 Check for peak below 0 dB with no clipped samples, and an RMS around -20 to -14 dB for full-mix music. Calm tracks can sit lower, around -25 dB. These are starting points, since the user's game mix decides the final level.
 
