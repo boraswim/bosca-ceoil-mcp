@@ -2,16 +2,29 @@
 // does the validation that depends on the song and on the app's data.
 
 import { randomUUID } from "node:crypto";
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { AppError, type BoscaApp } from "./app.js";
-import { analyzeWav } from "./wav.js";
+import { analyzeWav, masterWav } from "./wav.js";
 
 const EXPORT_POLL_MS = 500;
 const DEFAULT_EXPORT_WAIT_SECONDS = 40;
+
+// Where each platform's loudness normalisation sets playback, in LUFS. Music
+// louder than this gets turned down, so mastering louder only costs dynamics.
+const MASTER_PLATFORMS = ["streaming", "spotify", "youtube", "tidal", "amazon_music", "deezer", "apple_music"] as const;
+const PLATFORM_LUFS: Record<(typeof MASTER_PLATFORMS)[number], number> = {
+  streaming: -14,
+  spotify: -14,
+  youtube: -14,
+  tidal: -14,
+  amazon_music: -14,
+  deezer: -15,
+  apple_music: -16,
+};
 
 const SCALES =
   "normal (all notes), major, minor (melodic, with a raised 6th and 7th; for natural minor, use the relative major's key with scale major), blues, harmonic minor, pentatonic major, pentatonic minor, pentatonic blues, " +
@@ -227,7 +240,7 @@ export function registerTools(server: McpServer, app: BoscaApp): void {
     "export_song",
     {
       description:
-        "Exports the song as audio or music data: wav (rendered audio), mid (MIDI), mml (SiON MML) or xm (FastTracker). By default a WAV renders at about playback speed or slower, so a long one returns state \"rendering\"; follow it up with export_status. With fast, a WAV renders in a few seconds and returns when done. A finished WAV reports its duration, peak and RMS, to help catch silent or clipped results.",
+        "Exports the song as audio or music data: wav (rendered audio), mid (MIDI), mml (SiON MML) or xm (FastTracker). By default a WAV renders at about playback speed or slower, so a long one returns state \"rendering\"; follow it up with export_status. With fast, a WAV renders in a few seconds and returns when done. A finished WAV reports its duration, peak, RMS, loudness in LUFS and true peak, to help catch silent, clipped or too quiet results. For a release on a streaming platform, follow it with master_wav.",
       inputSchema: {
         format: z.enum(["wav", "mid", "mml", "xm"]),
         path: z.string().describe("Where to write it. The extension must match the format."),
@@ -259,6 +272,62 @@ export function registerTools(server: McpServer, app: BoscaApp): void {
       annotations: READ_ONLY,
     },
     async () => run(async () => describeExport(await app.call<ExportJob>("export_status"))),
+  );
+
+  server.registerTool(
+    "master_wav",
+    {
+      description:
+        "Masters an exported WAV for release: brings it to a platform's loudness target with one overall gain and a look-ahead limiter that keeps true peaks under the ceiling. " +
+        "Writes a new file and leaves the input as it is. Use it for music going to Spotify or other streaming and download platforms, not for game audio, which the game's own mix sets. " +
+        "If the target would take more limiting than max_limiting_db, it stops short rather than squash the music, and reports reached_target false.",
+      inputSchema: {
+        path: z.string().describe("The WAV to master, usually from export_song."),
+        output_path: z.string().describe("Where to write the mastered WAV."),
+        platform: z
+          .enum(MASTER_PLATFORMS)
+          .optional()
+          .describe(
+            `Sets the loudness target. "streaming" (the default) is -14 LUFS, right for a release that a distributor sends to every store at once. ` +
+              Object.entries(PLATFORM_LUFS)
+                .map(([name, lufs]) => `${name}: ${lufs}`)
+                .join(", ") +
+              " LUFS.",
+          ),
+        target_lufs: z.number().min(-30).max(-6).optional().describe("A loudness target of your own, in LUFS, in place of the platform's."),
+        true_peak_db: z
+          .number()
+          .min(-6)
+          .max(0)
+          .optional()
+          .describe("True peak ceiling in dBTP. -1 by default, or -2 for targets louder than -14 LUFS, as Spotify recommends."),
+        max_limiting_db: z.number().min(0).max(12).optional().describe("The most the limiter may turn peaks down, 6 dB by default."),
+        overwrite: overwriteField,
+      },
+      annotations: DESTRUCTIVE,
+    },
+    async ({ path, output_path, platform, target_lufs, true_peak_db, max_limiting_db, overwrite }) =>
+      run(async () => {
+        const input = absolutePath(path);
+        const output = absolutePath(output_path);
+        if (!existsSync(input)) {
+          throw new Error(`The file doesn't exist: ${input}`);
+        }
+        if (extname(output).toLowerCase() !== ".wav") {
+          throw new Error(`The output must have a .wav extension: ${output}`);
+        }
+        if (!existsSync(dirname(output))) {
+          throw new Error(`The folder doesn't exist: ${dirname(output)}`);
+        }
+        if (existsSync(output) && !overwrite) {
+          throw new Error(`A file already exists at ${output}. Set overwrite to true to replace it.`);
+        }
+
+        const target = target_lufs ?? PLATFORM_LUFS[platform ?? "streaming"];
+        const ceiling = true_peak_db ?? (target > -14 ? -2 : -1);
+        const result = masterWav(input, output, { targetLufs: target, truePeakDb: ceiling, maxLimitingDb: max_limiting_db ?? 6 });
+        return { output_path: output, target_lufs: target, true_peak_ceiling_db: ceiling, ...result };
+      }),
   );
 
   forward(

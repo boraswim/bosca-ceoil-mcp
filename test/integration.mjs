@@ -361,6 +361,30 @@ try {
     await rejects("export_song", { format: "wav", path, fast: true }, /already exists/);
   });
 
+  await test("masters a WAV to a platform's loudness without passing the ceiling", async () => {
+    const input = file("fast.wav");
+    const before = readFileSync(input);
+    const output = file("mastered.wav");
+
+    const result = await call("master_wav", { path: input, output_path: output, platform: "spotify" });
+    console.log(`    (${result.before.loudness_lufs} LUFS to ${result.after.loudness_lufs} LUFS, true peak ${result.after.true_peak_db} dB, limiting ${result.limiting_db} dB)`);
+    assert.equal(result.target_lufs, -14);
+    if (result.reached_target) {
+      assert.ok(Math.abs(result.after.loudness_lufs + 14) <= 0.3, `loudness ${result.after.loudness_lufs}`);
+    }
+    assert.ok(result.after.true_peak_db <= -1, `true peak ${result.after.true_peak_db}`);
+    assert.ok(result.limiting_db <= 6.05, `limiting ${result.limiting_db}`);
+    assert.ok(Math.abs(result.after.duration_seconds - result.before.duration_seconds) < 0.01, "mastering changed the length");
+    assert.ok(readFileSync(input).equals(before), "mastering changed the input file");
+
+    const quieter = await call("master_wav", { path: input, output_path: output, platform: "apple_music", overwrite: true });
+    assert.ok(Math.abs(quieter.after.loudness_lufs + 16) <= 0.3, `apple music loudness ${quieter.after.loudness_lufs}`);
+
+    await rejects("master_wav", { path: input, output_path: output }, /already exists/);
+    await rejects("master_wav", { path: input, output_path: file("x.mp3") }, /\.wav/);
+    await rejects("master_wav", { path: file("missing.wav"), output_path: file("y.wav") }, /doesn't exist/);
+  });
+
   await test("can't edit while a WAV renders, and reports progress", async () => {
     const path = file("long.wav");
     const job = await call("export_song", { format: "wav", path, wait_seconds: 0 });

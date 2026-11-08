@@ -87,9 +87,22 @@ This is a standard MCP server over stdio, so any tool that supports those can us
 | Patterns | `add_pattern`, `update_pattern`, `clone_pattern`, `remove_pattern` |
 | Arrangement | `edit_arrangement` |
 | Playback | `play`, `pause`, `stop` |
-| Export | `export_song`, `export_status` |
+| Export | `export_song`, `export_status`, `master_wav` |
 | History | `undo`, `redo` |
 | App | `app_status`, `launch_app`, `quit_app`, `focus`, `screenshot_app` |
+
+### Releasing on Spotify and other platforms
+
+Streaming platforms play every track at about the same loudness, so a quiet export sounds weak next to other music. `master_wav` masters an exported WAV for release. It brings the file to the platform's loudness target with one overall gain, and a look-ahead limiter keeps the true peak under the ceiling. Ask for a release when you request a song, for example *"Write a 2-minute chiptune track I can release on Spotify"*.
+
+| `platform` | Target | Ceiling |
+| --- | --- | --- |
+| `streaming` (default) | -14 LUFS | -1 dBTP |
+| `spotify`, `youtube`, `tidal`, `amazon_music` | -14 LUFS | -1 dBTP |
+| `deezer` | -15 LUFS | -1 dBTP |
+| `apple_music` | -16 LUFS | -1 dBTP |
+
+Use `streaming` when a distributor such as DistroKid or CD Baby sends one file to every store. You can also set your own `target_lufs` and `true_peak_db`. The limiter turns peaks down by 6 dB at most by default. If that isn't enough to reach the target, the tool stops short and says so, rather than squash the music. The original export is left as it is.
 
 Your work is protected. Replacing a song with unsaved changes, overwriting a file, or quitting with unsaved changes all fail unless the AI tool explicitly says that's intended. An edit is one undo step in the app, whether you or the AI made it.
 
@@ -137,7 +150,7 @@ The server starts the normal Bosca Ceoil Blue executable with Godot's `--script`
 - **Tested on:** Windows 11 with Bosca Ceoil Blue 3.1.2, using Claude Code and a scripted MCP client.
 - **Not tested yet:** Codex and Antigravity, which follow their documented setup, and macOS and Linux, which should work the same way. Please report what you find.
 - **Other app versions:** the bridge uses the app's internal code, so a future version could break it. You'd get an error saying so when starting up, and details in `app.log`.
-- **Hearing:** AI tools can't hear the song. A WAV export reports its duration, peak and RMS, which catches silent or clipped output, but only you can tell if it sounds good.
+- **Hearing:** AI tools can't hear the song. A WAV export reports its duration, peak, RMS, loudness in LUFS and true peak, which catches silent, clipped or quiet output, but only you can tell if it sounds good.
 - **WAV exports** play the song through by default, so a long song takes as long as it plays. With `fast: true`, `export_song` renders it offline in a few seconds instead. In testing it matched the default export sample for sample, except with the compressor effect, whose live output also depends on what the app played before. It's opt-in while it gets more testing.
 - **Filter automation** past step 16 is lost on saving, a limit of the app's file format.
 - **App's scale quirk:** its `minor` scale is melodic, with a raised 6th and 7th. The server explains this to AI tools, since it's easy to trip over.

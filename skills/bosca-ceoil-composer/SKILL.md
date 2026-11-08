@@ -1,11 +1,11 @@
 ---
 name: bosca-ceoil-composer
-description: Compose original game music and sound effects with the Bosca Ceoil MCP, and export them ready for a game. Use this whenever the user wants a soundtrack, background music, battle or menu theme, seamless loop, jingle, sting, UI sound, or SFX such as a coin, jump, laser, hit or explosion, and the bosca-ceoil tools are available, even if they don't mention Bosca Ceoil. Also use it for chiptune or retro game audio, and for fixing or extending a .ceol song.
+description: Compose original game music and sound effects with the Bosca Ceoil MCP, and export them ready for a game. Use this whenever the user wants a soundtrack, background music, battle or menu theme, seamless loop, jingle, sting, UI sound, or SFX such as a coin, jump, laser, hit or explosion, and the bosca-ceoil tools are available, even if they don't mention Bosca Ceoil. Also use it for chiptune or retro game audio, for fixing or extending a .ceol song, and for writing and mastering a track to release on Spotify, Apple Music, YouTube or other platforms.
 ---
 
 # Bosca Ceoil Composer
 
-Write original music and sound effects for games in Bosca Ceoil Blue, then export files a game can use.
+Write original music and sound effects for games in Bosca Ceoil Blue, then export files a game can use, or master a track for release on streaming platforms.
 
 This skill drives the bosca-ceoil MCP server. If its tools aren't available, tell the user to set it up from https://github.com/boraswim/bosca-ceoil-mcp, which also needs Node.js 18+ and the free Bosca Ceoil Blue app, and stop there.
 
@@ -18,6 +18,7 @@ Work out these from the request, and only ask about what you can't sensibly assu
 - **Use:** which game moment it's for, and whether it loops, plays once or layers over other audio.
 - **Mood and style:** the game's genre and any references. Treat a named game or song as a description of its feel, and don't reuse its melodies.
 - **Delivery:** the folder to write to, and for music, the length in bars or seconds.
+- **Destination:** whether the music goes into a game, or is released on Spotify, Apple Music, YouTube or another platform. A release needs a mastered file, as described in "Releasing music" below. If the user mentions a platform, a distributor or a release, it's a release.
 
 State the assumptions you made in your final message.
 
@@ -68,12 +69,24 @@ To make several sounds without effects in one song, put each in its own bar with
 6. **For a loop,** arrange the loop twice and add one empty bar at the end, then export and cut it with `scripts/extract_loop.py`. This is what makes the seam clean. See "Loops" in the music reference.
 7. Run `scripts/analyze_audio.py` on the result, adding `--loop` for a loop. Fix clipping by lowering instrument volumes, not by accepting it.
 8. Call `save_song` so the user keeps an editable `.ceol` file next to the WAV.
+9. **For a release,** master the WAV as described in "Releasing music".
 
 Check for peak below 0 dB with no clipped samples, and an RMS around -20 to -14 dB for full-mix music. Calm tracks can sit lower, around -25 dB. These are starting points, since the user's game mix decides the final level.
 
+## Releasing music
+
+Streaming platforms play every track at about the same loudness, measured in LUFS. A raw export usually sits around -18 to -22 LUFS, so next to other music it sounds quiet and thin. `master_wav` fixes this. It turns the whole file up to the platform's target, and a limiter keeps the true peak under the ceiling.
+
+- **Write a full track, not a loop.** Platforms count a stream only after 30 seconds, so aim for 2 minutes or more, with an intro, sections that change and a real ending. A game loop isn't a release, even mastered.
+- **Choose the target from where it goes.** A distributor such as DistroKid or CD Baby sends one file to every store, so use `platform: "streaming"`, which is -14 LUFS. Use a single platform, such as `apple_music` at -16 LUFS, only when the file goes to that platform alone. Mastering louder than the target gains nothing, because the platform turns it back down.
+- **Keep both files.** Master the raw export into a new file, such as `name_master.wav`. The raw one stays as the source for any later change.
+- **Read the result.** `after.loudness_lufs` should be at the target, and `after.true_peak_db` at or under the ceiling. If `reached_target` is false, the music has strong peaks, like a loud kick or a sharp lead, and reaching the target would take more than 6 dB of limiting. Tell the user. A calm or sparse track can stay quieter, since platforms don't turn quiet music up past its peaks, and that costs little. For a denser sound, lower the loudest instrument, often the drums or the lead, and export again. Only raise `max_limiting_db`, up to about 9, if the user agrees, since more limiting flattens the punch of the drums.
+- **Never master game audio.** Music and sound effects for a game keep their headroom, because the game's mix sets their level. When a piece is for both, deliver the game file and the release master separately.
+- **Format:** exports are already 44.1 kHz, 16-bit stereo WAV, which is what distributors ask for. Mention that the release also needs square cover art, usually 3000 by 3000 pixels.
+
 ## Finish
 
-- Tell the user where each file is, and which tempo, key and loop length you used.
+- Tell the user where each file is, and which tempo, key and loop length you used. For a release, also give the master's loudness and true peak, and the target you used.
 - Report measurements only as technical checks.
 - Call `play` when the user is ready to listen, and ask what to change. Ask specific questions, such as whether it's too bright or too long.
 - Mention that Ctrl+Z in the app undoes each edit.
