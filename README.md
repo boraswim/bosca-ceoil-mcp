@@ -108,7 +108,7 @@ Your work is protected. Replacing a song with unsaved changes, overwriting a fil
 
 ## Composer skill
 
-[`skills/bosca-ceoil-composer`](skills/bosca-ceoil-composer) is an optional skill that helps Claude write game music and sound effects with this server. It has sound effect recipes, tempo and arrangement guidance for game moments, notes on how the app behaves, scripts that measure exports, cut seamless loops and finish sound effects, and [demos](skills/bosca-ceoil-composer/assets/demos) you can listen to. The scripts need Python 3, and two of them need numpy.
+[`skills/bosca-ceoil-composer`](skills/bosca-ceoil-composer) is an optional skill that helps Claude write game music and sound effects with this server. It has sound effect recipes, tempo and arrangement guidance for game moments, notes on how the app behaves, scripts that measure exports, cut seamless loops, finish sound effects and find clashing notes in a song, and [demos](skills/bosca-ceoil-composer/assets/demos) you can listen to. The scripts need Python 3, and two of them need numpy.
 
 To use it in Claude Code, copy that folder to `~/.claude/skills/`, or to `.claude/skills/` in your project. It's also listed on [Agensi](https://www.agensi.io/skills/bosca-ceoil-composer-game-music-sfx), where you can install it into Claude Code, Cursor, Codex and other agents. You still need this server set up.
 

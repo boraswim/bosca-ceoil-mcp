@@ -64,6 +64,30 @@ Only some of these have been measured, and voices sit at different levels, so ch
 
 `CHIPTUNE/Noise (Bass)` is very dark and decays by itself in about 400 ms, so it suits the low layer of an impact.
 
+### Use one bass voice
+
+Don't layer two bass voices at the same pitch. In a funk song, layering clashed in two ways:
+
+- `BASS/Low Bass x1` isn't a clean sub. On E1 it also sounded a strong B1 (a fifth up), and on C2 a C1 (an octave down), so against a moving bass line it made a muddy cluster.
+- A `CHIPTUNE/Sine Wave` doubling `MIDI/Slap Bass 1` note for note cancelled the slap's fundamental. The pair measured about 2 dB less below 120 Hz than the slap alone.
+
+For a heavier bass, pick one heavier voice instead. Measured on the same one-bar line at volume 256, below 120 Hz:
+
+| Voice | Below 120 Hz | 600 Hz to 3 kHz | Character |
+|---|---|---|---|
+| `BASS/Analog Groove #2` | -13.5 dB | -65 dB | Heavy synth sub, little attack; volume around 150 in a full mix |
+| `BASS/Groove Bass #1` | -18.5 dB | -69 dB | Similar, a bit lighter |
+| `MIDI/Finger Bass` | -25.0 dB | -40 dB | Warm, with the most body (120 to 600 Hz) |
+| `MIDI/Slap Bass 1` | -28.1 dB | -31 dB | Light low end, the most click |
+
+The synth basses have almost nothing above 600 Hz, so they may fade on laptop speakers.
+
+`MIDI/Finger Bass` has very strong overtones. On a held C2, its 3rd harmonic (G3) was louder than the note itself, and its 5th harmonic (E4) was only 6 dB down. Under a minor chord that 5th harmonic is a major 3rd, which rubs against the chord. Instrument `cutoff` 16 brought the 5th harmonic down to -23 dB, while cutoff 40 changed nothing, because these overtones sit below 400 Hz.
+
+### Voices that sound in another octave
+
+`MIDI/Drawbar Organ` has a strong sub-octave: a written C5 was loudest at C4. A melody written above the chords can therefore land inside the chords' register. `MIDI/Percussive Organ` has only octave partials (C4 -5 dB, C5 -3 dB, C6 0 dB) and no strong 5th, so it suits a lead over chords better. Check an unfamiliar voice by rendering one held note and looking at its spectrum before writing parts around it.
+
 ## Drumkits
 
 Drumkit patterns take item names as notes. Call `get_drumkit` for the full list.

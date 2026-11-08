@@ -13,14 +13,31 @@ You can't hear anything you make. Measurements catch technical faults, like sile
 
 ## Start with the brief
 
-Work out these from the request, and only ask about what you can't sensibly assume:
+Work out these from the request:
 
 - **Use:** which game moment it's for, and whether it loops, plays once or layers over other audio.
 - **Mood and style:** the game's genre and any references. Treat a named game or song as a description of its feel, and don't reuse its melodies.
 - **Delivery:** the folder to write to, and for music, the length in bars or seconds.
 - **Destination:** whether the music goes into a game, or is released on Spotify, Apple Music, YouTube or another platform. A release needs a mastered file, as described in "Releasing music" below. If the user mentions a platform, a distributor or a release, it's a release.
 
-State the assumptions you made in your final message.
+### Always ask the open points before writing music
+
+A short request leaves most of a song's shape open, and guessing wrong costs a whole rewrite. So before you write any notes for a piece of music, always ask the user about the points their request leaves open, even when you could guess them. Use `AskUserQuestion` with up to 4 questions in one call, each with 2 to 4 concrete options and your recommendation first. Pick the questions that matter most for this request from this list:
+
+- **Shape:** how the piece unfolds. For example a seamless loop, intro then loop, a full song with intro, verses, a peak and an ending, or a slow build that keeps adding parts.
+- **Feel and energy:** laid-back, mid-tempo groove or high energy, and whether the energy stays level or rises and falls. Offer tempo ranges in BPM.
+- **Lead voice:** what carries the melody, such as a piano-like voice, an organ, a brass-like lead, or no lead at all so the groove sits in the background.
+- **Low end:** how prominent the bass is, from a soft walking line to a hard, driving bass that leads the mix.
+- **Drums:** none, light brushes and hats, a steady groove, or busy with fills.
+- **Sound colour:** warm and soft, or bright retro chiptune.
+- **Mood colour:** major and sunny, minor and moody, or bluesy and jazzy with 7th chords.
+- **Length and ending:** a length in seconds or bars, and whether it fades, stops on a final hit, or loops.
+- **Space for the game:** whether dialogue, ambience or other sounds will play over it, so the music needs to stay out of the way.
+- **Destination:** when the request doesn't say, whether it goes into a game or is released on streaming platforms, since a release needs a full-length track and mastering.
+
+Skip a question only when the user already answered it in their own words, and mention in the question text what you took from their request. For a sound effect, ask only when the use or style is unclear, since the recipes cover the rest.
+
+State any remaining assumptions in your final message.
 
 Before replacing anything, call `app_status`. If the open song has unsaved changes that aren't yours, save it or ask the user first. `discard_changes` exists to protect their work, so only set it for your own test songs.
 
@@ -64,7 +81,7 @@ To make several sounds without effects in one song, put each in its own bar with
 1. Choose the tempo, mode, palette and form from the context table.
 2. Write 2 to 4 bars of the core idea first: bass and harmony, then the melody, then drums.
 3. Build the arrangement from reused patterns with small changes, like a drum fill or a different melody ending every 4th or 8th bar. Real game tracks repeat a lot, and it also keeps files small and stops listeners tiring of a track.
-4. Use `get_song` to confirm the notes and arrangement landed as intended.
+4. Use `get_song` to confirm the notes and arrangement landed as intended. Then export to MIDI and run `scripts/check_clashes.py` on it. It lists every pair of notes sounding together a semitone apart, such as a minor 9th between the melody and a chord tone. Fix each one that isn't a deliberate passing note, because together they make the song sound like a mess. Chord extensions like 9ths and 13ths are a common cause, so prefer plain 7th chords under a busy melody.
 5. Export to WAV, using `fast: true` unless the song uses the compressor. Before the full export, test a few bars of each section to check the levels, and make sure each drop or chorus comes out louder than what leads into it.
 6. **For a loop,** arrange the loop twice and add one empty bar at the end, then export and cut it with `scripts/extract_loop.py`. This is what makes the seam clean. See "Loops" in the music reference.
 7. Run `scripts/analyze_audio.py` on the result, adding `--loop` for a loop. Fix clipping by lowering instrument volumes, not by accepting it.
@@ -101,12 +118,13 @@ Streaming platforms play every track at about the same loudness, measured in LUF
 
 ## Scripts
 
-All three need Python 3. `analyze_audio.py` and `finish_sfx.py` also need numpy, while `extract_loop.py` uses only the standard library.
+All four need Python 3. `analyze_audio.py` and `finish_sfx.py` also need numpy, while `extract_loop.py` and `check_clashes.py` use only the standard library.
 
 ```text
 scripts/analyze_audio.py FILE [FILE ...] [--loop] [--json]
 scripts/finish_sfx.py IN.wav OUT.wav [--peak-db -3] [--tail-ms 10]
 scripts/extract_loop.py IN.wav OUT.wav --bpm N --pattern-size N --bars N [--intro-bars N]
+scripts/check_clashes.py SONG.mid
 ```
 
 In `analyze_audio.py`, `pitch` is only meaningful when `tonal_fraction` is high, so ignore it for noise-based sounds. `level_jump_db` in a loop's report is normal when a kick lands on the downbeat, so a seam fault shows up as a high `sample_jump`, roughly above 0.2.
